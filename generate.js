@@ -217,7 +217,7 @@ function contactSection(depth) {
           <button type="button" class="map-facade" data-map-embed="${MAP_EMBED}" aria-label="Load Google Map of the Desire Look location">
             <span class="map-facade__pin" aria-hidden="true">📍</span>
             <span class="map-facade__txt">View Us on Google Maps</span>
-            <span class="map-facade__sub">Tap to load the interactive map</span>
+            <span class="map-facade__sub">Loading the interactive map…</span>
           </button>
         </div>
       </div>

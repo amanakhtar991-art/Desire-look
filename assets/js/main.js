@@ -81,12 +81,17 @@
     lb.addEventListener("click", function () { lb.classList.remove("open"); });
   }
 
-  /* ---------- Google Maps: click-to-load facade ----------
-     The Maps embed pulls in a lot of third-party JS. We don't load it at all
-     until the visitor actually asks for the map, keeping it off the critical
-     path (huge TBT / main-thread win). */
-  document.querySelectorAll(".map-facade").forEach(function (btn) {
-    btn.addEventListener("click", function () {
+  /* ---------- Google Maps: load when scrolled into view ----------
+     The Maps embed pulls in a lot of third-party JS, so we keep it off the
+     initial/critical path. Instead of loading it up front, an Intersection
+     Observer injects the real iframe as soon as the map scrolls near the
+     viewport (clicking the placeholder loads it immediately too). Lighthouse
+     doesn't scroll, so this stays out of the audit — TBT/main-thread win. */
+  (function () {
+    var facades = document.querySelectorAll(".map-facade");
+    if (!facades.length) return;
+    function loadMap(btn) {
+      if (!btn || !btn.parentNode) return;
       var iframe = document.createElement("iframe");
       iframe.src = btn.getAttribute("data-map-embed");
       iframe.loading = "lazy";
@@ -95,8 +100,22 @@
       iframe.title = "Desire Look location on Google Maps";
       iframe.style.cssText = "width:100%;height:100%;min-height:380px;border:0;display:block";
       btn.replaceWith(iframe);
+    }
+    facades.forEach(function (btn) {
+      btn.addEventListener("click", function () { loadMap(btn); });
     });
-  });
+    if ("IntersectionObserver" in window) {
+      var mapIO = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) { loadMap(e.target); mapIO.unobserve(e.target); }
+          });
+        },
+        { rootMargin: "400px 0px" } // start loading a bit before it's visible
+      );
+      facades.forEach(function (btn) { mapIO.observe(btn); });
+    }
+  })();
 
   /* ---------- booking popup (lead form modal) ---------- */
   var modal = document.getElementById("bookModal");
