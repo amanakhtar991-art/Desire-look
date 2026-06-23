@@ -15,19 +15,8 @@
     onScroll();
   }
 
-  // fixed top bar: offset the page by its height so content isn't hidden under it
-  var sitebar = document.querySelector(".sitebar");
-  function padForBar() {
-    if (!sitebar) return;
-    var hh = sitebar.offsetHeight;
-    document.body.style.paddingTop = hh + "px";
-    document.documentElement.style.scrollPaddingTop = hh + 12 + "px";
-  }
-  if (sitebar) {
-    padForBar();
-    window.addEventListener("load", padForBar);
-    window.addEventListener("resize", padForBar);
-  }
+  // The bar is position:sticky now, so it reserves its own space in normal
+  // flow — no JS padding needed (that previously caused a layout shift / CLS).
 
   /* ---------- mobile nav ---------- */
   var toggle = document.querySelector(".nav__toggle");
@@ -92,12 +81,29 @@
     lb.addEventListener("click", function () { lb.classList.remove("open"); });
   }
 
+  /* ---------- Google Maps: click-to-load facade ----------
+     The Maps embed pulls in a lot of third-party JS. We don't load it at all
+     until the visitor actually asks for the map, keeping it off the critical
+     path (huge TBT / main-thread win). */
+  document.querySelectorAll(".map-facade").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var iframe = document.createElement("iframe");
+      iframe.src = btn.getAttribute("data-map-embed");
+      iframe.loading = "lazy";
+      iframe.allowFullscreen = true;
+      iframe.referrerPolicy = "no-referrer-when-downgrade";
+      iframe.title = "Desire Look location on Google Maps";
+      iframe.style.cssText = "width:100%;height:100%;min-height:380px;border:0;display:block";
+      btn.replaceWith(iframe);
+    });
+  });
+
   /* ---------- booking popup (lead form modal) ---------- */
   var modal = document.getElementById("bookModal");
   function openModal() {
     if (!modal) return;
     modal.classList.add("open");
-    modal.setAttribute("aria-hidden", "false");
+    modal.removeAttribute("inert"); // make it reachable to keyboard / AT
     document.body.classList.add("modal-open");
     var first = modal.querySelector("input[name=name]");
     if (first) setTimeout(function () { first.focus(); }, 80);
@@ -105,7 +111,7 @@
   function closeModal() {
     if (!modal) return;
     modal.classList.remove("open");
-    modal.setAttribute("aria-hidden", "true");
+    modal.setAttribute("inert", ""); // hide from focus order while closed
     document.body.classList.remove("modal-open");
   }
   if (modal) {
@@ -210,27 +216,51 @@
     });
   });
 
-  /* ---------- Flickity carousels (with prev/next arrows) ---------- */
-  function initCarousels() {
-    if (!window.Flickity) return;
-    document.querySelectorAll(".js-carousel").forEach(function (el) {
-      if (el.classList.contains("flickity-enabled")) return;
-      // carousel cells must stay visible (don't depend on scroll-reveal)
-      el.querySelectorAll(".reveal").forEach(function (r) { r.classList.add("in"); });
-      new window.Flickity(el, {
-        cellAlign: "left",
-        contain: true,
-        groupCells: true,
-        pageDots: true,
-        prevNextButtons: true,
-        wrapAround: false,
-        imagesLoaded: true,
-        adaptiveHeight: false
+  /* ---------- carousels: native CSS scroll-snap (no JS library) ----------
+     The .js-carousel rows are horizontal scroll-snap containers in CSS now,
+     so there's nothing to initialise — we just make sure their cells aren't
+     hidden by the scroll-reveal animation. */
+  document.querySelectorAll(".js-carousel .reveal").forEach(function (r) {
+    r.classList.add("in");
+  });
+
+  /* ---------- IntersectionObserver lazy-loading ----------
+     Header/hero images load eagerly (loading="eager" + fetchpriority).
+     Everything below the fold uses native loading="lazy"; the gallery's
+     35 thumbnails are deferred explicitly here via data-src so they only
+     fetch as they approach the viewport. */
+  function loadLazy(img) {
+    var parent = img.parentNode;
+    if (parent && parent.tagName === "PICTURE") {
+      parent.querySelectorAll("source[data-srcset]").forEach(function (s) {
+        s.srcset = s.getAttribute("data-srcset");
+        s.removeAttribute("data-srcset");
       });
-    });
+    }
+    var src = img.getAttribute("data-src");
+    if (src) img.src = src;
+    img.removeAttribute("data-src");
+    img.classList.add("io-loaded");
   }
-  initCarousels();
-  window.addEventListener("load", initCarousels);
+  var lazyImgs = document.querySelectorAll("img.io-lazy[data-src]");
+  if (lazyImgs.length) {
+    if ("IntersectionObserver" in window) {
+      var lazyIO = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) {
+              loadLazy(e.target);
+              lazyIO.unobserve(e.target);
+            }
+          });
+        },
+        { rootMargin: "300px 0px" }
+      );
+      lazyImgs.forEach(function (img) { lazyIO.observe(img); });
+    } else {
+      lazyImgs.forEach(loadLazy);
+    }
+  }
 
   /* ---------- footer year ---------- */
   var yy = document.querySelector("[data-year]");

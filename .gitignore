@@ -1,13 +1,3 @@
-# OS / editor
-.DS_Store
-Thumbs.db
-*.stackdump
-
-# logs / temp
-*.log
-_*.html
-shot-*.png
-*.tmp
-
-# node (not used now, but just in case)
 node_modules/
+*.log
+*.stackdump

@@ -1,0 +1,27 @@
+{
+  "name": "desirelook",
+  "version": "1.0.0",
+  "description": "A fast, static, SEO-optimized website for **Desire Look**, a bridal makeup studio & beauty salon in Dhanbad, Jharkhand.",
+  "main": "generate.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://amanakhtar991-art@github.com/amanakhtar991-art/Desire-look.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/amanakhtar991-art/Desire-look/issues"
+  },
+  "homepage": "https://github.com/amanakhtar991-art/Desire-look#readme",
+  "dependencies": {
+    "sharp": "^0.35.2"
+  },
+  "devDependencies": {
+    "lighthouse": "^12.8.2"
+  }
+}

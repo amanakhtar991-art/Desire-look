@@ -9,7 +9,7 @@ const MAP = "https://maps.app.goo.gl/T7hxQ1yfMJhzLqQP9";
 const SITE = "https://desirelook.in";
 const EMAIL = "desirelook.official@gmail.com";
 const INSTA = "https://www.instagram.com/the_desire_look_official";
-const CITY_LIST = ["Dhanbad","Bokaro","Jamshedpur","Ramgarh","Ranchi","Hazaribagh","Giridih","Deoghar","Chas","Phusro","Jharia","Sindri","Chaibasa","Dumka"];
+const CITY_LIST = ["Dhanbad","Bokaro","Jamshedpur","Ramgarh","Ranchi","Hazaribagh","Giridih","Deoghar","Chas","Phusro","Jharia","Sindri","Chaibasa","Dumka","Patna","Gaya","Bhagalpur","Muzaffarpur","Begusarai","Bihar Sharif","Nawada","Jamui","Aurangabad","Sasaram"];
 const CITY_PILLS = CITY_LIST.map((c) => `<span>${c}</span>`).join("");
 const TOPBAR = `<div class="topbar">
   <div class="container topbar__row">
@@ -25,10 +25,57 @@ const MAIL_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true
 const PIN_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1114.5 9 2.5 2.5 0 0112 11.5z"/></svg>';
 const MAP_EMBED =
   'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3654.055168739842!2d86.1497383!3d23.673985000000002!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39f423c7a6da08fd%3A0x830f14d4ec03c004!2sDesire%20Look!5e0!3m2!1sen!2sin!4v1782009904568!5m2!1sen!2sin';
+const FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600&display=swap";
+
+// Output pixel dimensions of every optimized image (written by optimize-images.js).
+// Lets us stamp explicit width/height on each <img> so the browser reserves space (zero CLS).
+const DIMS = JSON.parse(fs.readFileSync(path.join(ROOT, "img-dims.json"), "utf8"));
+
+// Minify the stylesheet once and inline it into every page's <head>. Inlining
+// removes the one render-blocking CSS request (faster FCP/LCP), and stripping
+// comments/whitespace satisfies the "minify CSS" audit. style.min.css is also
+// written to disk so the hand-written index.html/services.html can inline the
+// exact same string.
+const CSS_MIN = fs
+  .readFileSync(path.join(ROOT, "assets/css/style.css"), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/\s+/g, " ")
+  .replace(/\s*([{}:;,>])\s*/g, "$1")
+  .replace(/;}/g, "}")
+  .trim();
+fs.writeFileSync(path.join(ROOT, "assets/css/style.min.css"), CSS_MIN);
+function whOf(src) {
+  const d = DIMS[src.split("/").pop()];
+  return d ? ` width="${d.w}" height="${d.h}"` : "";
+}
+// Responsive <picture>: WebP first (with JPEG fallback), explicit dimensions, and either
+// eager+high-priority (above-the-fold hero) or native lazy loading. Pass {io:true} to defer
+// far-below-the-fold images via the IntersectionObserver loader in main.js (with a <noscript>).
+function pic(src, alt, opts) {
+  opts = opts || {};
+  const webp = src.replace(/\.jpe?g$/i, ".webp");
+  const wh = whOf(src);
+  const cls = opts.cls ? ` class="${opts.cls}"` : "";
+  if (opts.io) {
+    const ph = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E";
+    return (
+      `<picture><source type="image/webp" data-srcset="${webp}"><img class="io-lazy${opts.cls ? " " + opts.cls : ""}" src="${ph}" data-src="${src}"${wh} alt="${alt}" decoding="async"></picture>` +
+      `<noscript><img src="${src}"${wh} alt="${alt}" loading="lazy"></noscript>`
+    );
+  }
+  const load = opts.eager
+    ? ' fetchpriority="high" loading="eager" decoding="async"'
+    : ' loading="lazy" decoding="async"';
+  return `<picture><source type="image/webp" srcset="${webp}"><img src="${src}"${wh} alt="${alt}"${cls}${load}></picture>`;
+}
 
 // depth: "" for root, "../" for subfolders
-function head({ title, desc, canonical, depth, ogimg }) {
+function head({ title, desc, canonical, depth, ogimg, preload }) {
   const a = depth;
+  const pre = preload
+    ? `\n<link rel="preload" as="image" href="${a}${preload}" fetchpriority="high">`
+    : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,9 +96,9 @@ function head({ title, desc, canonical, depth, ogimg }) {
 <link rel="apple-touch-icon" href="${a}assets/img/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/flickity@2/dist/flickity.min.css">
-<link rel="stylesheet" href="${a}assets/css/style.css">`;
+<link rel="preload" as="style" href="${FONTS_HREF}" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="${FONTS_HREF}"></noscript>${pre}
+<style>${CSS_MIN}</style>`;
 }
 
 function topbarHeader(depth, active) {
@@ -64,7 +111,7 @@ function topbarHeader(depth, active) {
 ${TOPBAR}
 <header class="site-header">
   <div class="container nav">
-    <a class="brand" href="${a}index.html"><img class="brand__logo" src="${a}assets/img/logo.png" alt="Desire Look — Bridal Makeup Studio & Beauty Salon, Dhanbad"></a>
+    <a class="brand" href="${a}index.html"><img class="brand__logo" src="${a}assets/img/logo.png"${whOf("logo.png")} fetchpriority="high" decoding="async" alt="Desire Look — Bridal Makeup Studio & Beauty Salon, Dhanbad"></a>
     <nav class="nav__links" aria-label="Primary">
       ${lk("index.html", "Home", "home")}
       ${lk("services.html", "Services", "services")}
@@ -80,30 +127,32 @@ ${TOPBAR}
   </div>
 </header>
 </div>
-<div class="nav-scrim"></div>`;
+<div class="nav-scrim"></div>
+<main>`;
 }
 
 function footer(depth) {
   const a = depth;
-  return `<footer class="site-footer">
+  return `</main>
+<footer class="site-footer">
   <div class="container footer-grid">
     <div class="footer-brand">
       <a class="brand" href="${a}index.html"><span class="brand__mark">D</span><span><span class="brand__name">Desire Look</span><span class="brand__tag">Bridal Studio & Salon</span></span></a>
-      <p>Dhanbad's premier bridal makeup studio & beauty salon — crafting the look you desire for every celebration.</p>
+      <p>Jharkhand & Bihar's premier bridal makeup studio & beauty salon — crafting the look you desire for every celebration.</p>
       <div class="footer-social"><a href="${INSTA}" target="_blank" rel="noopener" aria-label="Instagram">${IG_SVG}</a><a href="mailto:${EMAIL}" aria-label="Email">${MAIL_SVG}</a><a href="https://wa.me/${WA}" target="_blank" rel="noopener" aria-label="WhatsApp">${WA_SVG}</a><a href="${MAP}" target="_blank" rel="noopener" aria-label="Google Maps">${PIN_SVG}</a></div>
     </div>
     <div><h4>Quick Links</h4><ul><li><a href="${a}index.html">Home</a></li><li><a href="${a}services.html">Services</a></li><li><a href="${a}gallery.html">Gallery</a></li><li><a href="${a}blog.html">Blog</a></li><li><a href="${a}index.html#about">About Us</a></li><li><a href="#contact">Contact</a></li></ul></div>
     <div><h4>Services</h4><ul><li><a href="${a}services/bridal-makeup.html">Bridal Makeup</a></li><li><a href="${a}services/party-makeup.html">Party Makeup</a></li><li><a href="${a}services/hair-styling.html">Hair Styling</a></li><li><a href="${a}services/skin-facial.html">Skin & Facial</a></li><li><a href="${a}services/mehndi-nails.html">Mehndi & Nails</a></li><li><a href="${a}services/threading-waxing.html">Threading & Waxing</a></li></ul></div>
-    <div><h4>Get In Touch</h4><ul><li>📍 Dhanbad, Jharkhand 826001</li><li>📞 <a href="tel:+${WA}">${PHONE}</a></li><li>✉️ <a href="mailto:${EMAIL}">${EMAIL}</a></li><li>🕘 Mon–Sun: 9 AM – 8 PM</li><li><a href="${MAP}" target="_blank" rel="noopener">📍 Get Directions</a></li></ul></div>
+    <div><h4>Get In Touch</h4><ul><li>📍 Jharkhand &amp; Bihar, India</li><li>📞 <a href="tel:+${WA}">${PHONE}</a></li><li>✉️ <a href="mailto:${EMAIL}">${EMAIL}</a></li><li>🕘 Mon–Sun: 9 AM – 8 PM</li><li><a href="${MAP}" target="_blank" rel="noopener">📍 Get Directions</a></li></ul></div>
   </div>
-  <div class="footer-bottom">© <span data-year>2026</span> Desire Look · Bridal Makeup Studio & Beauty Salon, Dhanbad · All Rights Reserved</div>
+  <div class="footer-bottom">© <span data-year>2026</span> Desire Look · Bridal Makeup Studio & Beauty Salon · Jharkhand & Bihar · All Rights Reserved</div>
 </footer>
 <div class="fab-stack">
   <a class="fab fab--call" href="tel:+${WA}" aria-label="Call Desire Look"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.36 11.36 0 003.56.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1.02l-2.2 2.2z"/></svg></a>
   <a class="fab fab--wa" id="waFloat" href="https://wa.me/${WA}?text=${WA_TEXT}" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">${WA_SVG}</a>
   <a class="fab fab--book" href="#contact">📅 Book Appointment</a>
 </div>
-<div class="modal" id="bookModal" aria-hidden="true">
+<div class="modal" id="bookModal" inert>
   <div class="modal__backdrop" data-close></div>
   <div class="modal__card" role="dialog" aria-modal="true" aria-label="Book an appointment">
     <button class="modal__close" data-close aria-label="Close">&times;</button>
@@ -111,17 +160,16 @@ function footer(depth) {
     <h3>Book Your Appointment</h3>
     <p>Share a few details — we'll confirm instantly on WhatsApp.</p>
     <form class="book-form" data-book>
-      <div class="field"><label>Full Name</label><input type="text" name="name" required placeholder="Your name"></div>
-      <div class="field"><label>Phone Number</label><input type="tel" name="phone" required placeholder="+91 ..."></div>
-      <div class="field"><label>Service</label><select name="service"><option>Bridal Makeup</option><option>Party &amp; Occasion Makeup</option><option>Hair Styling &amp; Spa</option><option>Skin &amp; Facial</option><option>Mehndi &amp; Nails</option><option>Threading &amp; Waxing</option></select></div>
-      <div class="field"><label>Preferred Date</label><input type="date" name="date"></div>
+      <div class="field"><label for="m-name">Full Name</label><input id="m-name" type="text" name="name" required placeholder="Your name" aria-label="Full name"></div>
+      <div class="field"><label for="m-phone">Phone Number</label><input id="m-phone" type="tel" name="phone" required placeholder="+91 ..." aria-label="Phone number"></div>
+      <div class="field"><label for="m-service">Service</label><select id="m-service" name="service" aria-label="Service"><option>Bridal Makeup</option><option>Party &amp; Occasion Makeup</option><option>Hair Styling &amp; Spa</option><option>Skin &amp; Facial</option><option>Mehndi &amp; Nails</option><option>Threading &amp; Waxing</option></select></div>
+      <div class="field"><label for="m-date">Preferred Date</label><input id="m-date" type="date" name="date" aria-label="Preferred date"></div>
       <button type="submit" class="btn btn--gold" style="width:100%">Send Booking Request</button>
     </form>
   </div>
 </div>
 <div class="lightbox"><button class="lightbox__close" aria-label="Close">×</button><img src="" alt="Gallery preview"></div>
-<script src="https://unpkg.com/flickity@2/dist/flickity.pkgd.min.js"></script>
-<script src="${a}assets/js/main.js"></script>
+<script src="${a}assets/js/main.js" defer></script>
 </body>
 </html>`;
 }
@@ -136,17 +184,17 @@ function contactSection(depth) {
     <div class="section-head reveal">
       <span class="eyebrow">Visit / Book Us</span>
       <h2>Let's Create Your Look</h2>
-      <p>Find us in Dhanbad or reserve your appointment online. We'd love to be part of your special day.</p>
+      <p>Reach us across Jharkhand &amp; Bihar or reserve your appointment online. We'd love to be part of your special day.</p>
     </div>
     <div class="contact">
       <div class="reveal">
         <form class="book-form" data-book>
           <h3>Book an Appointment</h3>
           <p>Fill in your details — we'll confirm on WhatsApp.</p>
-          <div class="field"><label>Full Name</label><input type="text" name="name" required placeholder="Your name"></div>
-          <div class="field"><label>Phone Number</label><input type="tel" name="phone" required placeholder="+91 ..."></div>
-          <div class="field"><label>Service</label>
-            <select name="service">
+          <div class="field"><label for="c-name">Full Name</label><input id="c-name" type="text" name="name" required placeholder="Your name" aria-label="Full name"></div>
+          <div class="field"><label for="c-phone">Phone Number</label><input id="c-phone" type="tel" name="phone" required placeholder="+91 ..." aria-label="Phone number"></div>
+          <div class="field"><label for="c-service">Service</label>
+            <select id="c-service" name="service" aria-label="Service">
               <option>Bridal Makeup</option>
               <option>Party &amp; Occasion Makeup</option>
               <option>Hair Styling &amp; Spa</option>
@@ -155,18 +203,22 @@ function contactSection(depth) {
               <option>Threading &amp; Waxing</option>
             </select>
           </div>
-          <div class="field"><label>Preferred Date</label><input type="date" name="date"></div>
-          <div class="field"><label>Message</label><textarea name="message" rows="3" placeholder="Tell us about your event..."></textarea></div>
+          <div class="field"><label for="c-date">Preferred Date</label><input id="c-date" type="date" name="date" aria-label="Preferred date"></div>
+          <div class="field"><label for="c-message">Message</label><textarea id="c-message" name="message" rows="3" placeholder="Tell us about your event..." aria-label="Message"></textarea></div>
           <button type="submit" class="btn btn--gold" style="width:100%">Send Booking Request</button>
         </form>
       </div>
       <div class="contact__info reveal">
-        <div class="info-row"><span class="ic">📍</span><div><b>Address</b><span>Desire Look, Dhanbad, Jharkhand 826001, India</span></div></div>
+        <div class="info-row"><span class="ic">📍</span><div><b>Service Area</b><span>Desire Look — serving Jharkhand &amp; Bihar, India</span></div></div>
         <div class="info-row"><span class="ic">📞</span><div><b>Phone / WhatsApp</b><a href="tel:+${WA}">${PHONE}</a></div></div>
         <div class="info-row"><span class="ic">🕘</span><div><b>Working Hours</b><span>Mon – Sun: 9:00 AM – 8:00 PM</span></div></div>
         <div class="info-row"><span class="ic">🧭</span><div><b>Directions</b><a href="${MAP}" target="_blank" rel="noopener">Open in Google Maps →</a></div></div>
         <div class="map-wrap">
-          <iframe src="${MAP_EMBED}" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Desire Look location on Google Maps"></iframe>
+          <button type="button" class="map-facade" data-map-embed="${MAP_EMBED}" aria-label="Load Google Map of the Desire Look location">
+            <span class="map-facade__pin" aria-hidden="true">📍</span>
+            <span class="map-facade__txt">View Us on Google Maps</span>
+            <span class="map-facade__sub">Tap to load the interactive map</span>
+          </button>
         </div>
       </div>
     </div>
@@ -188,12 +240,14 @@ const SERVICES = [
       ["Trials, Touch-Ups & On-Location Service", "We strongly recommend a pre-wedding trial so there are zero surprises on the big day. On the day itself, our team can come to your home, hotel or venue and stay on hand for touch-ups. From draping to the final hair pin, we handle the details so you can simply enjoy your moment."],
     ],
     list: [
-      ["HD Bridal Makeup", "₹15,000+", "2h 30m"],
-      ["Airbrush Bridal Makeup", "₹18,000+", "2h 30m"],
-      ["Traditional Bridal Makeup", "₹12,000+", "2h"],
-      ["Engagement Makeup", "₹8,000+", "1h 30m"],
-      ["Reception Makeup", "₹10,000+", "2h"],
-      ["Bridal Trial Makeup", "₹4,000+", "1h 30m"],
+      ["Bridal / Reception Makeup (MAC)", "₹12,000", "2h 30m"],
+      ["Bridal / Reception Makeup (Studio)", "₹15,000", "2h 30m"],
+      ["Bridal / Reception Makeup (Airbrush)", "₹20,000", "2h 30m"],
+      ["Bridal / Reception Makeup (Airbrush HD)", "₹25,000", "3h"],
+      ["Engagement / Sangeet Makeup (MAC)", "₹7,000", "1h 30m"],
+      ["Engagement / Sangeet Makeup (Studio)", "₹9,000", "1h 30m"],
+      ["Outstation Bridal Makeup (Studio)", "₹25,000", "on-site"],
+      ["Bridal Trial Makeup", "₹4,000", "1h 30m"],
     ],
     faqs: [
       ["How far in advance should I book?", "For wedding-season dates (Oct–Feb), book 1–2 months ahead. A small advance locks in your slot and trial date."],
@@ -214,12 +268,12 @@ const SERVICES = [
       ["Complete the Look", "Pair your makeup with hairstyling, saree draping and nail finishing in a single visit. We make it effortless to walk out fully ready, head to toe."],
     ],
     list: [
-      ["Party Makeup", "₹3,500+", "1h"],
-      ["HD Party Makeup", "₹5,000+", "1h 15m"],
-      ["Festive Makeup", "₹4,000+", "1h"],
-      ["Pre-Wedding Shoot Makeup", "₹6,000+", "1h 30m"],
-      ["Guest / Family Makeup", "₹2,500+", "45m"],
-      ["Saree / Dupatta Draping", "₹800+", "20m"],
+      ["Party Makeup (MAC)", "₹5,000", "1h"],
+      ["Party Makeup (Studio)", "₹6,000", "1h 15m"],
+      ["Engagement / Sangeet Makeup (MAC)", "₹7,000", "1h 30m"],
+      ["Engagement / Sangeet Makeup (Studio)", "₹9,000", "1h 30m"],
+      ["Outstation Makeup (Studio)", "₹25,000", "on-site"],
+      ["Saree / Dupatta Draping", "₹800", "20m"],
     ],
     faqs: [
       ["Can I get ready for a same-day event?", "Yes, subject to availability. Call or WhatsApp us and we'll fit you in wherever we can."],
@@ -240,7 +294,7 @@ const SERVICES = [
       ["Everyday Styling", "Need to look polished fast? Our blow-dry, curls and haircut services give you a fresh, salon-finished style for work, parties or any day you want to feel good."],
     ],
     list: [
-      ["Bridal Hairstyling", "₹3,000+", "1h"],
+      ["Bridal Hairstyling", "₹1,500+", "1h"],
       ["Hair Spa", "₹1,200+", "45m"],
       ["Keratin Treatment", "₹4,000+", "3h"],
       ["Hair Smoothening", "₹3,500+", "3h"],
@@ -336,7 +390,7 @@ const SERVICES = [
 
 function serviceSchema(s) {
   return `<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Service","name":"${s.name}","serviceType":"${s.name}","provider":{"@type":"BeautySalon","name":"Desire Look","address":{"@type":"PostalAddress","addressLocality":"Dhanbad","addressRegion":"Jharkhand","addressCountry":"IN"},"telephone":"+${WA}"},"areaServed":"Dhanbad, Jharkhand","url":"${SITE}/services/${s.slug}.html"}
+{"@context":"https://schema.org","@type":"Service","name":"${s.name}","serviceType":"${s.name}","provider":{"@type":"BeautySalon","name":"Desire Look","address":{"@type":"PostalAddress","addressLocality":"Dhanbad","addressRegion":"Jharkhand","addressCountry":"IN"},"telephone":"+${WA}"},"areaServed":["Jharkhand","Bihar"],"url":"${SITE}/services/${s.slug}.html"}
 </script>`;
 }
 
@@ -350,6 +404,7 @@ function buildService(s, idx) {
       canonical: `${SITE}/services/${s.slug}.html`,
       depth,
       ogimg: s.hero,
+      preload: s.hero,
     }) +
     serviceSchema(s) +
     topbarHeader(depth, "services") +
@@ -397,7 +452,7 @@ function buildService(s, idx) {
       ${s.gallery
         .map(
           (g) =>
-            `<a href="${depth}assets/img/${g}.jpg" data-lightbox><img src="${depth}assets/img/${g}.jpg" alt="${s.name} by Desire Look"></a>`
+            `<a href="${depth}assets/img/${g}.jpg" data-lightbox>${pic(`${depth}assets/img/${g}.jpg`, `${s.name} by Desire Look`)}</a>`
         )
         .join("\n      ")}
     </div>
@@ -425,7 +480,7 @@ function buildService(s, idx) {
       ${others
         .map(
           (o) =>
-            `<article class="card reveal"><a class="card__media" href="${o.slug}.html"><img src="${depth}${o.hero}" alt="${o.name}"></a><div class="card__body"><h3>${o.name}</h3><p>${o.intro.slice(0, 90)}…</p><div class="card__meta"><a class="card__link" href="${o.slug}.html">View Service →</a></div></div></article>`
+            `<article class="card reveal"><a class="card__media" href="${o.slug}.html" aria-label="${o.name}">${pic(`${depth}${o.hero}`, o.name)}</a><div class="card__body"><h3>${o.name}</h3><p>${o.intro.slice(0, 90)}…</p><div class="card__meta"><a class="card__link" href="${o.slug}.html" aria-label="View ${o.name} service">View Service →</a></div></div></article>`
         )
         .join("\n      ")}
     </div>
@@ -447,7 +502,7 @@ SERVICES.forEach(buildService);
   let imgs = "";
   for (let i = 1; i <= 35; i++) {
     const n = String(i).padStart(2, "0");
-    imgs += `<a href="assets/img/gallery-${n}.jpg" data-lightbox><img loading="lazy" src="assets/img/gallery-${n}.jpg" alt="Desire Look bridal makeup gallery image ${i}"></a>\n      `;
+    imgs += `<a href="assets/img/gallery-${n}.jpg" data-lightbox>${pic(`assets/img/gallery-${n}.jpg`, `Desire Look bridal makeup gallery image ${i}`, { io: true })}</a>\n      `;
   }
   const html =
     head({
@@ -455,6 +510,7 @@ SERVICES.forEach(buildService);
       desc: "Browse the Desire Look gallery — real brides, party makeup, hair, mehndi and beauty transformations created at our Dhanbad studio.",
       canonical: `${SITE}/gallery.html`,
       depth,
+      preload: "assets/img/gallery-20.jpg",
     }) +
     topbarHeader(depth, "gallery") +
     `
@@ -613,6 +669,7 @@ function buildPost(p, idx) {
       canonical: `${SITE}/blog/${p.slug}.html`,
       depth,
       ogimg: p.img,
+      preload: p.img,
     }) +
     postSchema(p) +
     topbarHeader(depth, "blog") +
@@ -656,7 +713,7 @@ function buildPost(p, idx) {
       ${more
         .map(
           (m) =>
-            `<article class="post reveal"><a class="post__media" href="${m.slug}.html"><img src="${depth}${m.img}" alt="${m.title}"></a><div class="post__body"><span class="post__date">${m.date}</span><h3>${m.title}</h3><p>${m.excerpt}</p><a class="card__link" href="${m.slug}.html">Read More →</a></div></article>`
+            `<article class="post reveal"><a class="post__media" href="${m.slug}.html" aria-label="${m.title.replace(/"/g, "")}">${pic(`${depth}${m.img}`, m.title.replace(/"/g, ""))}</a><div class="post__body"><span class="post__date">${m.date}</span><h3>${m.title}</h3><p>${m.excerpt}</p><a class="card__link" href="${m.slug}.html" aria-label="Read: ${m.title.replace(/"/g, "")}">Read More →</a></div></article>`
         )
         .join("\n      ")}
     </div>
@@ -676,7 +733,7 @@ POSTS.forEach(buildPost);
   const depth = "";
   const cards = POSTS.map(
     (p) =>
-      `<article class="post reveal"><a class="post__media" href="blog/${p.slug}.html"><img loading="lazy" src="${p.img}" alt="${p.title}"></a><div class="post__body"><span class="post__date">${p.date}</span><h3>${p.title}</h3><p>${p.excerpt}</p><a class="card__link" href="blog/${p.slug}.html">Read More →</a></div></article>`
+      `<article class="post reveal"><a class="post__media" href="blog/${p.slug}.html" aria-label="${p.title.replace(/"/g, "")}">${pic(p.img, p.title.replace(/"/g, ""))}</a><div class="post__body"><span class="post__date">${p.date}</span><h3>${p.title}</h3><p>${p.excerpt}</p><a class="card__link" href="blog/${p.slug}.html" aria-label="Read: ${p.title.replace(/"/g, "")}">Read More →</a></div></article>`
   ).join("\n      ");
   const html =
     head({
@@ -684,6 +741,7 @@ POSTS.forEach(buildPost);
       desc: "Bridal makeup tips, pre-bridal skincare, hairstyle guides and beauty advice from the Desire Look studio in Dhanbad.",
       canonical: `${SITE}/blog.html`,
       depth,
+      preload: "assets/img/gallery-16.jpg",
     }) +
     topbarHeader(depth, "blog") +
     `
@@ -729,9 +787,54 @@ POSTS.forEach(buildPost);
   fs.writeFileSync(path.join(ROOT, "sitemap.xml"), sitemap);
   fs.writeFileSync(
     path.join(ROOT, "robots.txt"),
-    `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`
+    `User-agent: *\nAllow: /\n\n# AI / LLM crawlers welcome\nUser-agent: GPTBot\nAllow: /\nUser-agent: OAI-SearchBot\nAllow: /\nUser-agent: ChatGPT-User\nAllow: /\nUser-agent: ClaudeBot\nAllow: /\nUser-agent: Claude-Web\nAllow: /\nUser-agent: PerplexityBot\nAllow: /\nUser-agent: Google-Extended\nAllow: /\nUser-agent: Applebot-Extended\nAllow: /\nUser-agent: CCBot\nAllow: /\nUser-agent: Bytespider\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`
   );
-  console.log("sitemap + robots built");
+
+  // llms.txt — the emerging "robots.txt for AI": a clean, link-rich map of the site
+  // that LLM crawlers/answer-engines read to understand the business. https://llmstxt.org
+  const llms =
+    `# Desire Look\n\n` +
+    `> Bridal makeup studio & beauty salon based in Dhanbad, Jharkhand — serving brides and clients across Jharkhand and Bihar. HD & airbrush bridal makeup, party makeup, hair styling, skin & facials, mehndi and nails.\n\n` +
+    `- Location: Dhanbad, Jharkhand 826001, India (on-location service across Jharkhand & Bihar)\n` +
+    `- Phone / WhatsApp: ${PHONE}\n` +
+    `- Email: ${EMAIL}\n` +
+    `- Instagram: ${INSTA}\n` +
+    `- Hours: Mon–Sun, 9:00 AM – 8:00 PM\n\n` +
+    `## Pages\n\n` +
+    `- [Home](${SITE}/)\n` +
+    `- [Services & Prices](${SITE}/services.html)\n` +
+    `- [Gallery](${SITE}/gallery.html)\n` +
+    `- [Blog](${SITE}/blog.html)\n\n` +
+    `## Services\n\n` +
+    SERVICES.map((s) => `- [${s.name}](${SITE}/services/${s.slug}.html): ${s.intro.slice(0, 110)}…`).join("\n") +
+    `\n\n## Articles\n\n` +
+    POSTS.map((p) => `- [${p.title.replace(/"/g, "")}](${SITE}/blog/${p.slug}.html): ${p.excerpt}`).join("\n") +
+    `\n`;
+  fs.writeFileSync(path.join(ROOT, "llms.txt"), llms);
+
+  // ai.txt — usage/permissions hint for AI data crawlers
+  fs.writeFileSync(
+    path.join(ROOT, "ai.txt"),
+    `# ai.txt — AI crawler guidance for Desire Look (${SITE})\n# Public marketing content. Crawling & answer-engine citation permitted.\nUser-Agent: *\nAllow: /\nContent-Usage: ai-summarize=allow, ai-train=allow\nContact: ${EMAIL}\nSitemap: ${SITE}/sitemap.xml\nLLM-Index: ${SITE}/llms.txt\n`
+  );
+  console.log("sitemap + robots + llms.txt + ai.txt built");
+})();
+
+// Inline the same minified CSS into the two hand-written pages so they also
+// drop the render-blocking stylesheet request and stay in sync with the build.
+(function inlineCssIntoHandwritten() {
+  const styleTag = `<style id="dl-css">${CSS_MIN}</style>`;
+  ["index.html", "services.html"].forEach((f) => {
+    const p = path.join(ROOT, f);
+    let html = fs.readFileSync(p, "utf8");
+    if (html.indexOf('id="dl-css"') !== -1) {
+      html = html.replace(/<style id="dl-css">[\s\S]*?<\/style>/, () => styleTag);
+    } else {
+      html = html.replace(/<link rel="stylesheet" href="assets\/css\/style\.css">/, () => styleTag);
+    }
+    fs.writeFileSync(p, html);
+  });
+  console.log("inlined CSS into index.html + services.html");
 })();
 
 console.log("\nAll pages generated.");
