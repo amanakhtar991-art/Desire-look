@@ -23,4 +23,4 @@ Allow: /
 User-agent: Bytespider
 Allow: /
 
-Sitemap: https://desirelook.in/sitemap.xml
+Sitemap: https://www.desirelook.in/sitemap.xml

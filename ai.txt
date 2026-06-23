@@ -1,8 +1,8 @@
-# ai.txt — AI crawler guidance for Desire Look (https://desirelook.in)
+# ai.txt — AI crawler guidance for Desire Look (https://www.desirelook.in)
 # Public marketing content. Crawling & answer-engine citation permitted.
 User-Agent: *
 Allow: /
 Content-Usage: ai-summarize=allow, ai-train=allow
 Contact: desirelook.official@gmail.com
-Sitemap: https://desirelook.in/sitemap.xml
-LLM-Index: https://desirelook.in/llms.txt
+Sitemap: https://www.desirelook.in/sitemap.xml
+LLM-Index: https://www.desirelook.in/llms.txt

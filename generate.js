@@ -6,7 +6,7 @@ const ROOT = __dirname;
 const PHONE = "+91 92794 66630";
 const WA = "919279466630";
 const MAP = "https://maps.app.goo.gl/T7hxQ1yfMJhzLqQP9";
-const SITE = "https://desirelook.in";
+const SITE = "https://www.desirelook.in"; // canonical host (non-www 301s to www) — must match for social/OG crawlers
 const EMAIL = "desirelook.official@gmail.com";
 const INSTA = "https://www.instagram.com/the_desire_look_official";
 const CITY_LIST = ["Dhanbad","Bokaro","Jamshedpur","Ramgarh","Ranchi","Hazaribagh","Giridih","Deoghar","Chas","Phusro","Jharia","Sindri","Chaibasa","Dumka","Patna","Gaya","Bhagalpur","Muzaffarpur","Begusarai","Bihar Sharif","Nawada","Jamui","Aurangabad","Sasaram"];
@@ -86,14 +86,25 @@ function head({ title, desc, canonical, depth, ogimg, preload }) {
 <link rel="canonical" href="${canonical}">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Desire Look">
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${desc}">
 <meta property="og:url" content="${canonical}">
-<meta property="og:image" content="${SITE}/${ogimg || "assets/img/banner.jpg"}">
+<meta property="og:image" content="${SITE}/assets/img/og-cover.jpg">
+<meta property="og:image:secure_url" content="${SITE}/assets/img/og-cover.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Desire Look — Bridal Makeup Studio & Beauty Salon, serving Jharkhand & Bihar">
 <meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${title}">
+<meta name="twitter:description" content="${desc}">
+<meta name="twitter:image" content="${SITE}/assets/img/og-cover.jpg">
 <meta name="theme-color" content="#7a1f2e">
 <link rel="icon" type="image/svg+xml" href="${a}favicon.svg">
-<link rel="apple-touch-icon" href="${a}assets/img/logo.png">
+<link rel="icon" type="image/png" sizes="180x180" href="${a}assets/img/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="${a}assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="${FONTS_HREF}" onload="this.onload=null;this.rel='stylesheet'">
